@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "dht-8"
+version = "0.1.0"
+description = ""
+authors = ["SadikhovEmin <eemin.sadykhov@gmail.com>"]
+readme = "README.md"
+packages = [{include = "dht_8"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
