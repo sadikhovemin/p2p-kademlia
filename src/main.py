@@ -1,11 +1,12 @@
 import asyncio
-from api import Api
+from api_protocol import ApiProtocol
 from config.config import dht_config
 
 
 async def main(host, port):
     loop = asyncio.get_running_loop()
-    server = await loop.create_server(Api, host, port)
+    server = await loop.create_server(ApiProtocol, host, port)
+    print(f"Server started at {host} : {port}")
     await server.serve_forever()
 
 
