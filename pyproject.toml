@@ -8,6 +8,7 @@ packages = [{include = "dht_8"}]
 
 [tool.poetry.dependencies]
 python = "^3.11"
+hexdump = "^3.3"
 
 
 [build-system]
