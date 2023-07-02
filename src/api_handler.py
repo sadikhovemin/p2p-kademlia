@@ -3,7 +3,7 @@ import asyncio
 import struct
 
 
-class ApiProtocol(asyncio.Protocol):
+class Handler(asyncio.Protocol):
     def init(self):
         """
         Initialize API protocol with a Service instance and a placeholder for transport.
