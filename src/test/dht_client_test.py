@@ -124,6 +124,9 @@ def main():
             value = bytes(args.data, encoding='utf=8')
 
     s = get_socket(host, port)
+    local_ip, local_port = s.getsockname()
+    print(f"Client is using IP: {local_ip} and Port: {local_port}")
+
     print(f"[+] Connected to {host}:{port}")
 
     print(args)
