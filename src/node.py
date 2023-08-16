@@ -1,92 +1,73 @@
-# import asyncio
-#
-#
+import hashlib
+import socket
+from bucket import KBucket
+import asyncio
+
+from message_codes import MessageCodes
+
+
 class Node:
-    def __init__(self, node_id, ip=None, port=None):
-        self.id = node_id
+    def __init__(self, ip=None, port=None):
+        self.id = self.generate_node_id(ip, port) if (ip and port) else None
         self.ip = ip
         self.port = port
-        print("Node is created with ", ip, " and a port ", port)
-# #
-# #     async def connect_to_server(self, server_ip, server_port):
-# #         reader, writer = await asyncio.open_connection(server_ip, server_port)
-# #
-# #         # Send a message to the server. For this example, I'm just sending the node's ID.
-# #         message = f"Node {self.id} connected\n"
-# #         writer.write(message.encode())
-# #
-# #         # Wait for a response from the server (if any)
-# #         data = await reader.read(100)  # read up to 100 bytes
-# #         print(f"Received from server: {data.decode()}")
-# #
-# #         writer.close()
-# #         await writer.wait_closed()
-# #
-# #
-# #
-# # # Example usage:
-# #
-# # async def main_node_operation():
-# #     node1 = Node("Node1", "127.0.0.1", 7403)
-# #     await node1.connect_to_server("127.0.0.1", 7401)
-# #
-# #
-# # if __name__ == "__main__":
-# #     asyncio.run(main_node_operation())
-#
-#
-# import asyncio
-# from dht_service import Service
-# from api_handler import Handler  # assuming the code you provided is in handler.py
-#
-#
-# class Node:
-#     def __init__(self, node_id, ip="127.0.0.1", port=7400):
-#         self.id = node_id
-#         self.ip = ip
-#         self.port = port
-#         self.server = None
-#         self.handler = Handler()  # instantiate your server handler
-#
-#     async def start_server(self):
-#         loop = asyncio.get_event_loop()
-#         server_coro = loop.create_server(lambda: self.handler, self.ip, self.port)
-#         self.server = await server_coro
-#         print(f"{self.id} Server started at {self.ip}:{self.port}")
-#         await self.server.serve_forever()
-#
-#     async def connect_to_peer(self, peer_ip, peer_port):
-#         try:
-#             reader, writer = await asyncio.open_connection(peer_ip, peer_port)
-#             print(f"{self.id} connected to peer at {peer_ip}:{peer_port}")
-#
-#             # here you can define your protocol to communicate with the peer
-#
-#             writer.close()
-#             await writer.wait_closed()
-#         except Exception as e:
-#             print(f"{self.id} failed to connect to {peer_ip}:{peer_port}. Reason: {e}")
-#
-#     async def run_node(self, peer_ips=None, peer_ports=None):
-#         tasks = [self.start_server()]
-#
-#         if peer_ips and peer_ports:
-#             for ip, port in zip(peer_ips, peer_ports):
-#                 tasks.append(self.connect_to_peer(ip, port))
-#
-#         await asyncio.gather(*tasks)
-#
-#
-# async def run():
-#     node1 = Node("Node1", port=7400)
-#     node2 = Node("Node2", port=7401)
-#
-#     # Here node1 tries to connect to node2, and node2 tries to connect to node1
-#     # Normally in a real-world P2P, nodes might be aware of a few peers and would try connecting to them
-#     await asyncio.gather(node1.run_node(peer_ips=["127.0.0.1"], peer_ports=[7401]),
-#                          node2.run_node(peer_ips=["127.0.0.1"], peer_ports=[7400]))
-#
-#
-if __name__ == "__main__":
-    print('salem')
-#     asyncio.run(run())
+        self.k_buckets = [KBucket(k_size=20) for _ in range(256)]
+        if self.id:  # <-- Add this check
+            print("Node is created with ", ip, " and a port ", port)
+            print("Node id is ", self.id)
+
+    def add_contact(self, node_id, ip, port):
+        print("add contact function called for ", node_id)
+        distance = self.calculate_distance(self.id, node_id)
+        bucket_index = self.get_bucket_index(distance)
+        node_instance = Node(ip=ip, port=port)
+        node_instance.id = node_id  # Manually set the ID without generating a new one
+        self.k_buckets[bucket_index].add(node_instance)
+
+    @staticmethod
+    def calculate_distance(id1, id2):
+        return id1 ^ id2
+
+    @staticmethod
+    def get_bucket_index(distance):
+        return distance.bit_length() - 1
+
+    def bootstrappable_neighbors(self):
+        neighbors = []
+        for bucket in self.k_buckets:
+            neighbors.extend([(node.ip, node.port) for node in bucket.get_nodes()])
+        return neighbors
+
+    @staticmethod
+    def generate_node_id(ip=None, port=None):
+        if ip is None:
+            ip = socket.gethostbyname(socket.gethostname())
+        unique_str = f"{ip}:{port}"
+        return int(hashlib.sha256(unique_str.encode()).hexdigest(), 16)  # Convert to integer
+
+    @classmethod
+    def from_ip_and_port(cls, ip, port):
+        """Constructs a Node instance using given IP and port without generating a new ID."""
+        instance = cls(ip=ip, port=port)
+        instance.id = None
+        return instance
+
+    async def bootstrap_from(self):
+        bootstrap_ip = "localhost"
+        bootstrap_port = 7401
+        reader, writer = await asyncio.open_connection(bootstrap_ip, bootstrap_port)
+
+        # Sending a 'ping' message to bootstrap node using DHT_PING code.
+        ping_msg = MessageCodes.DHT_PING.value.to_bytes(2, 'big')
+        writer.write(ping_msg)
+        data = await reader.read(2)
+
+        if data == MessageCodes.DHT_PONG.value.to_bytes(2, 'big'):
+            print(f"Successfully bootstrapped from {bootstrap_ip}:{bootstrap_port}")
+
+            # Add bootstrap node to k-bucket (since we don't have the bootstrap node's ID, we can't add it to the k-bucket)
+        else:
+            print(f"Failed to bootstrap from {bootstrap_ip}:{bootstrap_port}")
+
+        writer.close()
+        await writer.wait_closed()
