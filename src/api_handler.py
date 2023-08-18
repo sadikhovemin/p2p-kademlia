@@ -1,57 +1,17 @@
-# import asyncio
-# import struct
-#
-# from message_codes import MessageCodes
-#
-#
-# class Handler(asyncio.Protocol):
-#     def __init__(self, ip, port, node, dht_service):
-#         self.ip = ip
-#         self.port = port
-#         self.node = node
-#         self.dht_service = dht_service
-#
-#     def connection_made(self, transport):
-#         self.transport = transport
-#
-#     def data_received(self, data):
-#         print("Received:", data)
-#
-#         # Handle PING and PONG messages
-#         if struct.unpack(">H", data[:2])[0] == MessageCodes.DHT_PING.value:
-#             self.transport.write(struct.pack(">H", MessageCodes.DHT_PONG.value))
-#             print(f"Sent: {MessageCodes.DHT_PONG.value}")
-#
-#             # Add the connecting peer to the bootstrap node's k-bucket
-#             peer_host, peer_port = self.transport.get_extra_info('peername')
-#             peer_id = self.node.generate_node_id(peer_host, peer_port)
-#             self.node.add_contact(peer_id, peer_host, peer_port)
-#
-#         # Handle other messages using the Service instance
-#         else:
-#             try:
-#                 response = self.service.process_message(data)
-#                 self.transport.write(response)
-#             except ValueError as e:
-#                 print(f"Invalid request: {e}")
-#
-#     def connection_lost(self, exc):
-#         pass
-
-
 import asyncio
 import hashlib
 import struct
 
 from message_codes import MessageCodes
+from dht_service import Service
 
 
 class Handler(asyncio.Protocol):
-    def __init__(self, ip, port, node, dht_service):
+    def __init__(self, ip, port, node):
         self.ip = ip
         self.port = port
         self.node = node
-        self.service = dht_service
+        self.service = Service(node)
         self.transport = None
 
     def connection_made(self, transport):
@@ -94,14 +54,24 @@ class Handler(asyncio.Protocol):
     async def send_ping(self, host, port):
         unique_str = f"{self.ip}:{self.port}"
 
+        ip_parts = list(map(int, self.ip.split('.')))
         message = (struct.pack(">HH", 36, MessageCodes.DHT_PING.value) +
-                   hashlib.sha256(unique_str.encode()).digest())
+                   hashlib.sha256(unique_str.encode()).digest() +
+                   struct.pack(">BBBBH", ip_parts[0], ip_parts[1], ip_parts[2], ip_parts[3], self.port))
 
         reader, writer = await asyncio.open_connection(host, port)
         writer.write(message)
         await writer.drain()
         data = await reader.read(1024)  # Read the PONG response from the bootstrap node
 
+        print("PRINTING DATA ", data, host, port)
+
+        from_bytes = int.from_bytes(data, 'big')
+        print("from_bytes", from_bytes)
+        # self.node.add_peer(from_bytes, host, port)
+
         writer.close()
+
+        self.service.ping_service(host, port)
 
         return data
