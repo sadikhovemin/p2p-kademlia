@@ -9,4 +9,5 @@ class MessageCodes(Enum):
     DHT_PING = 654
     DHT_PONG = 655
     DHT_FIND_NODE = 656
-    DHT_FIND_VALUE = 657
+    DHT_NODE_REPLY = 657
+    DHT_FIND_VALUE = 658

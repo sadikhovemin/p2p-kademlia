@@ -13,6 +13,7 @@ async def main(host, port, bootstrap=False):
     handler_instance = Handler(host, port, my_node)
 
     server = await loop.create_server(lambda: handler_instance, host, port)
+    print(f"Node started at {host} : {port}")
 
     if bootstrap:
         api_address = dht_config["api_address"]
@@ -29,7 +30,6 @@ async def main(host, port, bootstrap=False):
         # Now you can safely send the ping message
         # handler_instance.transport.write(ping_msg)
 
-    print(f"Server started at {host} : {port}")
 
     await server.serve_forever()
 

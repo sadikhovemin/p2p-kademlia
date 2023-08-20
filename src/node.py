@@ -8,7 +8,7 @@ class Node:
         self.id = self.generate_node_id(ip, port) if (ip and port) else None
         self.ip = ip
         self.port = port
-        self.k_buckets = [KBucket(k_size=20) for _ in range(5)]
+        self.k_buckets = [KBucket(k_size=3) for _ in range(32)]
         if self.id:
             print("Node is created with ", ip, " and a port ", port)
             print("Node id is ", self.id)
@@ -45,11 +45,12 @@ class Node:
     def get_bucket_index(distance):
         return distance.bit_length() - 1
 
-    # def bootstrappable_neighbors(self):
-    #     neighbors = []
-    #     for bucket in self.k_buckets:
-    #         neighbors.extend([(node.ip, node.port) for node in bucket.get_nodes()])
-    #     return neighbors
+    def get_closest_nodes(self, target_node_id, k=8):
+        distance_to_nodes = [(self.calculate_distance(self.cut_node_id(node.id), self.cut_node_id(target_node_id)), node)
+                             for bucket in self.k_buckets for
+                             node in bucket.nodes]
+        distance_to_nodes.sort(key=lambda x: x[0])
+        return [node for _, node in distance_to_nodes[:k]]
 
     @staticmethod
     def generate_node_id(ip=None, port=None):
@@ -64,3 +65,6 @@ class Node:
         instance = cls(ip=ip, port=port)
         instance.id = None
         return instance
+
+    def __str__(self):
+        return f"Node(id={self.id}, ip={self.ip}, port={self.port})"

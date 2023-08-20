@@ -19,15 +19,20 @@ class Handler(asyncio.Protocol):
         self.transport = transport
 
     def data_received(self, data):
-        print("calistim")
+        print("calistim - 1")
         asyncio.ensure_future(self.process_incoming_data(data))
 
     async def process_incoming_data(self, data):
         """
         Process incoming data and respond accordingly.
         """
-        print("calistim")
+        print("calistim - 2")
+        if len(data) == 0:
+            self.close_connection()
+            return
+
         processed_data = await self.service.process_message(data)
+        print("processed data", processed_data)
 
         if not processed_data:
             return self.close_connection()
@@ -36,17 +41,17 @@ class Handler(asyncio.Protocol):
             processed_data = processed_data.encode("utf-8")
 
         if self.transport:
+            print("bir sey yolladim")
+            print(processed_data)
             self.transport.write(processed_data)
 
         return processed_data
-
-    # def connection_lost(self, exc):
-    #     pass
 
     def close_connection(self):
         """
         Disconnect the current connection.
         """
+        print("closing connection")
         if self.transport:
             self.transport.close()
             self.transport = None
@@ -55,23 +60,30 @@ class Handler(asyncio.Protocol):
         unique_str = f"{self.ip}:{self.port}"
 
         ip_parts = list(map(int, self.ip.split('.')))
-        message = (struct.pack(">HH", 36, MessageCodes.DHT_PING.value) +
+        message = (struct.pack(">HH", 42, MessageCodes.DHT_PING.value) +
                    hashlib.sha256(unique_str.encode()).digest() +
                    struct.pack(">BBBBH", ip_parts[0], ip_parts[1], ip_parts[2], ip_parts[3], self.port))
 
-        reader, writer = await asyncio.open_connection(host, port)
-        writer.write(message)
-        await writer.drain()
-        data = await reader.read(1024)  # Read the PONG response from the bootstrap node
+        data = b''
 
-        print("PRINTING DATA ", data, host, port)
+        try:
+            reader, writer = await asyncio.open_connection(host, port)
+            writer.write(message)
+            await writer.drain()
+            # self.transport = writer.transport
+            self.connection_made(writer.transport)
 
-        from_bytes = int.from_bytes(data, 'big')
-        print("from_bytes", from_bytes)
-        # self.node.add_peer(from_bytes, host, port)
+            data = await reader.read(1024)  # Read the PONG response from the bootstrap node
 
-        writer.close()
+            print("PRINTING DATA ", data, host, port)
 
-        self.service.ping_service(host, port)
+            from_bytes = int.from_bytes(data, 'big')
+            print("from_bytes", from_bytes)
+
+            self.node.add_peer(self.node.generate_node_id(host, port), host, port)
+            # self.transport.close()
+            # writer.close()
+        except Exception as e:
+            print("COULDN'T GET RESPONSE FROM THE PEER occurred error", e)
 
         return data

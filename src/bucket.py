@@ -22,6 +22,4 @@ class KBucket:
     def visualize_k_buckets(self):
         """Visualize the k-bucket structure in a human-readable format."""
         for i, node in enumerate(self.nodes):
-            # print(f"Bucket {i}:")
-            # for node in bucket.get_nodes():
-                print(f"\tNode ID: {node.id}, IP: {node.ip}, Port: {node.port}")
+            print(f"\tNode ID: {node.id}, IP: {node.ip}, Port: {node.port}")
