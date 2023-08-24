@@ -2,29 +2,27 @@ import asyncio
 import hashlib
 import struct
 
+import aiomas
+
 from message_codes import MessageCodes
 from node import Node
 
 
 class Service:
-    def __init__(self, node: Node, callback):
-        self.data = {}
+    def __init__(self, node: Node, callback, put_connection):
         self.node = node
         self.callback = callback
+        self.put_connection = put_connection
 
-    def put_value(self, key, value):
-        self.data[key] = value
-
-    def get_value(self, key):
-        return self.data.get(key)
-
-    # TODO: mesaj alıp verdikten sonra size check yap.
     # TODO: ping pong with some frequency (update buckets based on ping pong responses)
+    # TODO: extract logic for struct pack and unpack
 
     async def process_message(self, data):
         try:
+            print("data", data)
             size = struct.unpack(">H", data[:2])[0]
             request_type = struct.unpack(">H", data[2:4])[0]
+            print("request_type", request_type)
             print("size", size)
             print(len(data))
             if size == len(data):
@@ -46,9 +44,11 @@ class Service:
                     # return MessageCodes.DHT_FIND_NODE.value
 
                 elif request_type == MessageCodes.DHT_PUT.value:
-                    return self.put_service(data[2:])
+                    print("DHT PUT geldim")
+                    return await self.put_service(data)
                 elif request_type == MessageCodes.DHT_GET.value:
-                    return self.get_service(data[2:])
+                    print("DHT GET geldim")
+                    return self.get_service(data)
                 elif request_type == MessageCodes.DHT_FIND_NODE.value:
                     print("find_node geldim")
                     return self.find_node_service(data[4:])
@@ -59,7 +59,7 @@ class Service:
                     print("below printing nodes to connect")
                     for n_c in nodes_to_connect:
                         print(n_c)
-                        await asyncio.create_task(self.callback(n_c[0], n_c[1]))
+                        await asyncio.create_task(self.callback(n_c[0], n_c[1], initiator=True))
 
                     return "ok".encode()
 
@@ -71,6 +71,79 @@ class Service:
                 print("WRONG DATA SIZE")
         except Exception as e:
             print("MALFORMED MESSAGE error", e)
+
+    # TODO: propagate put to 3 nodes that are closer in XOR distance
+    # TODO: if my distance is shorter, then store and return
+    # TODO: store in internal storage
+    # TODO: TTL introduce -> GET
+    # TODO: check if I have the value
+    async def put_service(self, data):
+        print("put_service called")
+        key = data[8:40]
+        value = data[40:]
+        reserved = int(struct.unpack(">B", data[7:8])[0])
+        print("reserved", reserved)
+        # print("key", key)
+        # print("value", value)
+
+        if reserved == 0:
+            return "put calisti".encode()
+
+        hashed_key = self.get_hashed_key(key)
+        # print("hashed_key", hashed_key)
+        target_node = self.node.get_closest_nodes(hashed_key)[0]
+
+        # await self.node.put(hashed_key, value)
+        print("target_node", target_node)
+        size = 8 + len(key) + len(value)
+        reserved -= 1
+        msg = struct.pack(">HHHBB", size, MessageCodes.DHT_PUT.value, 3600, 3, reserved) + key + value
+        await asyncio.create_task(self.put_connection(target_node.ip, target_node.port, msg))
+        #
+
+        # rpc_con = await aiomas.rpc.open_connection((target_node.ip, target_node.port))
+        # print(rpc_con)
+        # key_str = key.decode('utf-8')
+        # value_str = value.decode('utf-8')
+        # print(key_str, value_str)
+        # size = 4 + len(key) + len(value)
+        # msg = struct.pack(">HH", size, MessageCodes.DHT_PUT.value) + key + value
+        # print("this length", len(key_str) + len(value_str))
+        # print(len(msg))
+        # rep = await rpc_con.remote.put(key_str, value_str)
+
+        # rep = await rpc_con.remote.put(key, value)
+        # print("rep", rep)
+        # # target_node.put(hashed_key, value)
+        # await rpc_con.close()
+        # # return "Data stored successfully".encode()
+        # print("returning dht-put")
+        # return rep
+        return msg
+
+    # async def put_service(self, data):
+    #     print("put_service called")
+    #     key = data[8:40]
+    #     value = data[40:]
+    #     print("key", key)
+    #     print("value", value)
+    #     hashed_key = self.get_hashed_key(key)
+    #     print("hashed_key", hashed_key)
+    #
+    #     closest_nodes = self.node.get_closest_nodes(hashed_key)[:k]
+    #
+    #     for target_node in closest_nodes:
+    #         print("Sending PUT request to", target_node)
+    #         await self.rpc_put_key(target_node, hashed_key, value)
+    #
+    #     return "Data stored successfully".encode()
+
+    def get_service(self, data):
+        dht_key = data[4:]
+        print("dht_key", dht_key)
+        value = self.node.storage.get_(data)
+        print("retrieved value", value)
+        return
 
     def ping_service(self):
         unique_str = f"{self.node.ip}:{self.node.port}"
@@ -159,11 +232,11 @@ class Service:
     def filter_nodes_1(self, nodes):
         print("my k bucket")
 
-        k_bucket_nodes = set() # Create a set to hold the nodes that are in the k-buckets
+        k_bucket_nodes = set()  # Create a set to hold the nodes that are in the k-buckets
 
         for bucket in self.node.k_buckets:
             for node in bucket.nodes:
-                k_bucket_nodes.add((node.ip, node.port)) # Add the node's ip and port as a tuple to the set
+                k_bucket_nodes.add((node.ip, node.port))  # Add the node's ip and port as a tuple to the set
                 print(node)
 
         # Use a list comprehension to filter out any nodes that are in the k_bucket_nodes set
@@ -175,3 +248,6 @@ class Service:
 
         return filtered_nodes
 
+    @staticmethod
+    def get_hashed_key(key):
+        return int(hashlib.sha256(key).hexdigest(), 16)

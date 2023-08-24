@@ -61,7 +61,7 @@ def send_put(s, dht_key, dht_value):
                          DHT_PUT,
                          1,
                          1,
-                         0)
+                         3)
     putreq += dht_key
     putreq += dht_value
 

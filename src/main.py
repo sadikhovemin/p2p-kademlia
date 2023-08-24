@@ -22,7 +22,7 @@ async def main(host, port, bootstrap=False):
         api_host = api_address.split(":")[0]
         api_port = api_address.split(":")[1]
 
-        pong_msg = await handler_instance.connect_node(api_host, api_port)  # Bootstrap logic
+        pong_msg = await handler_instance.connect_node(api_host, api_port, initiator=True)  # Bootstrap logic
         # print(pong_msg)
         # await handler_instance.process_incoming_data(pong_msg)
 

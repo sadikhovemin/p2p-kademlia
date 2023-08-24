@@ -1,7 +1,14 @@
 import hashlib
 import socket
-from bucket import KBucket
+import struct
 
+import aiomas
+
+from bucket import KBucket
+from message_codes import MessageCodes
+from storage import Storage
+
+# TODO: once a k-bucket is full ping the last peer
 
 class Node:
     def __init__(self, ip=None, port=None, ping = False):
@@ -9,6 +16,7 @@ class Node:
         self.ip = ip
         self.port = port
         self.ping = ping    # not a bootstrap
+        self.storage = Storage()
         self.k_buckets = [KBucket(k_size=8) for _ in range(5)]
         if self.id:
             print("Node is created with ", ip, " and a port ", port)
@@ -34,6 +42,37 @@ class Node:
             print("BUCKET", i)
             i += 1
             k.visualize_k_buckets()
+
+    @aiomas.expose
+    async def put(self, key, value):
+        """Handles PUT requests."""
+        print("put called")
+        self.storage.put_(key, value)
+        # target_node = self.get_closest_nodes(key)[0]
+        # rpc_con = await aiomas.rpc.open_connection((target_node.ip, target_node.port))
+        # rep = await rpc_con.remote.put_key(key, value.decode('utf-8'))
+        # await rpc_con.close()
+        # print("response", rep)
+        #
+        # return rep
+
+        # print(rpc_con)
+        # key_str = key.decode('utf-8')
+        # value_str = value.decode('utf-8')
+        # print(key_str, value_str)
+        # size = 4 + len(key) + len(value)
+        # msg = struct.pack(">HH", size, MessageCodes.DHT_PUT.value) + key + value
+        # print("this length", len(key_str) + len(value_str))
+        # print(len(msg))
+        # rep = await rpc_con.remote.put(key_str, value_str)
+
+    # @aiomas.expose
+    # def put_key(self, key, value):
+    #     return self.storage.put_(key, value)
+
+    def get(self, key):
+        """Handles GET requests."""
+        return self.storage.get_(key)
 
     @staticmethod
     def cut_node_id(node_id):
