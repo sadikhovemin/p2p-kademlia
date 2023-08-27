@@ -1,12 +1,10 @@
 import hashlib
 import socket
-import struct
 
-import aiomas
 
 from bucket import KBucket
-from message_codes import MessageCodes
 from storage import Storage
+from loguru import logger
 
 # TODO: once a k-bucket is full ping the last peer
 
@@ -19,13 +17,17 @@ class Node:
         self.storage = Storage()
         self.k_buckets = [KBucket(k_size=8) for _ in range(5)]
         if self.id:
-            print("Node is created with ", ip, " and a port ", port)
-            print("Node id is ", self.id)
+            # print("Node is created with ", ip, " and a port ", port)
+            # print("Node id is ", self.id)
+            logger.info(f"Node is created with {ip} and a port {port}")
+            logger.info(f"Node id is {self.id}")
 
     def add_peer(self, node_id, ip, port):
-        print("add peer function called for ", node_id)
+        # print("add peer function called for ", node_id)
+        logger.info(f"add peer function called for {node_id}")
         distance = self.calculate_distance(self.cut_node_id(self.id), self.cut_node_id(node_id))
-        print("distance ", distance)
+        # print("distance ", distance)
+        logger.info(f"distance {distance}")
         bucket_index = self.get_bucket_index(distance)
         node_instance = Node(ip=ip, port=port)
         node_instance.id = node_id  # Manually set the ID without generating a new one
@@ -33,21 +35,23 @@ class Node:
         # Check if the peer is already in the bucket
         existing_nodes = self.k_buckets[bucket_index].nodes
         if any(n.id == node_id for n in existing_nodes):
-            print(f"Peer with ID {node_id}, IP {ip}, Port {port} already in the bucket")
+            # print(f"Peer with ID {node_id}, IP {ip}, Port {port} already in the bucket")
+            logger.info(f"Peer with ID {node_id}, IP {ip}, Port {port} already in the bucket")
         else:
             self.k_buckets[bucket_index].add(node_instance)
 
         i = 0
         for k in self.k_buckets:
-            print("BUCKET", i)
+            # print("BUCKET", i)
+            logger.info(f"BUCKET {i}")
             i += 1
             k.visualize_k_buckets()
 
-    @aiomas.expose
-    async def put(self, key, value):
+    def put(self, key, value, ttl):
         """Handles PUT requests."""
-        print("put called")
-        self.storage.put_(key, value)
+        # print("node put called")
+        logger.info("node put called")
+        self.storage.put_(key, value, ttl)
         # target_node = self.get_closest_nodes(key)[0]
         # rpc_con = await aiomas.rpc.open_connection((target_node.ip, target_node.port))
         # rep = await rpc_con.remote.put_key(key, value.decode('utf-8'))
@@ -86,7 +90,7 @@ class Node:
         cut_node_id = int(last_five_bits, 2)
         # cut_node_id = int(temp, 2)
 
-        print("cut node id", cut_node_id)
+        # logger.info(f"cut node id {cut_node_id}")
         return cut_node_id
 
     @staticmethod

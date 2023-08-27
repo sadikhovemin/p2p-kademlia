@@ -9,6 +9,8 @@ packages = [{include = "dht_8"}]
 [tool.poetry.dependencies]
 python = "^3.11"
 hexdump = "^3.3"
+mkdocs = "^1.5.2"
+loguru = "^0.7.0"
 
 
 [build-system]

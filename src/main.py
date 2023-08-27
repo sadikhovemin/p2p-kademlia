@@ -3,6 +3,9 @@ import asyncio
 from api_handler import Handler
 from config.config import dht_config
 from node import Node
+from loguru import logger
+
+logger.add("kademlia.log")
 
 
 async def main(host, port, bootstrap=False):
@@ -13,9 +16,11 @@ async def main(host, port, bootstrap=False):
 
     server = await loop.create_server(lambda: handler_instance, host, port)
     print(f"Node started at {host} : {port}")
+    logger.info(f"Node started at {host} : {port}")
 
     if bootstrap:
         print("buraya girdim")
+        # logger.info("buraya girdim")
         my_node.ping = True
         api_address = dht_config["api_address"]
 

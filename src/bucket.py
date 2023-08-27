@@ -1,6 +1,5 @@
 from collections import deque
 
-
 class KBucket:
     def __init__(self, k_size):
         self.k_size = k_size
@@ -23,3 +22,4 @@ class KBucket:
         """Visualize the k-bucket structure in a human-readable format."""
         for i, node in enumerate(self.nodes):
             print(f"\tNode ID: {node.id}, IP: {node.ip}, Port: {node.port}")
+            # logger.info(f"\tNode ID: {node.id}, IP: {node.ip}, Port: {node.port}")

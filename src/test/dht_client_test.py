@@ -9,7 +9,7 @@ import time
 target_ip = '127.0.0.1'
 target_port = 7401
 
-dht_key = b'emincanemincanemincanemincanemin'
+dht_key = b'emincanemincanemincanemincanemib'
 dht_value = b'bernd'
 
 DHT_PUT = 650
@@ -59,9 +59,9 @@ def send_put(s, dht_key, dht_value):
     putreq = struct.pack(">HHHBB",
                          (4 + 4 + int(256 / 8) + len(dht_value)),
                          DHT_PUT,
+                         15,
                          1,
-                         1,
-                         3)
+                         0)
     putreq += dht_key
     putreq += dht_value
 
