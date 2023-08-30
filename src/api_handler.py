@@ -55,9 +55,7 @@ class Handler(asyncio.Protocol):
         logger.info("data received called")
 
         if data == "ok".encode():
-            # print("so far works")
             logger.info("so far works")
-
             return
 
         if data == "Data stored successfully".encode():
@@ -97,9 +95,8 @@ class Handler(asyncio.Protocol):
             self.transport.close()
             self.transport = None
 
-    # async def connect_node(self, host, port):
-    #     loop = asyncio.get_event_loop()
-    #     await loop.create_connection(lambda: self, host, port)
+    def start_periodic_check(self):
+        asyncio.create_task(self.service.periodic_liveness_check())
 
     async def connect_node(self, host, port, initiator):
         loop = asyncio.get_event_loop()

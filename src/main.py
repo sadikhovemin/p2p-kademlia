@@ -18,18 +18,20 @@ async def main(host, port, bootstrap=False):
     print(f"Node started at {host} : {port}")
     logger.info(f"Node started at {host} : {port}")
 
+    handler_instance.start_periodic_check()
+
     if bootstrap:
-        print("buraya girdim")
-        # logger.info("buraya girdim")
+        logger.info("buraya girdim")
         my_node.ping = True
         api_address = dht_config["api_address"]
 
         api_host = api_address.split(":")[0]
         api_port = api_address.split(":")[1]
 
-        pong_msg = await handler_instance.connect_node(api_host, api_port, initiator=True)  # Bootstrap logic
-        # print(pong_msg)
-        # await handler_instance.process_incoming_data(pong_msg)
+        try:
+            await handler_instance.connect_node(api_host, api_port, initiator=True)  # Bootstrap logic
+        except Exception as e:
+            logger.error(f"Cannot connect to the bootstrap node")
 
     await server.serve_forever()
 

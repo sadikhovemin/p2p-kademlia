@@ -1,32 +1,27 @@
 import hashlib
 import socket
 
-
 from bucket import KBucket
 from storage import Storage
 from loguru import logger
+from config.config import dht_config
 
-# TODO: once a k-bucket is full ping the last peer
 
 class Node:
-    def __init__(self, ip=None, port=None, ping = False):
+    def __init__(self, ip=None, port=None, ping=False):
         self.id = self.generate_node_id(ip, port) if (ip and port) else None
         self.ip = ip
         self.port = port
-        self.ping = ping    # not a bootstrap
+        self.ping = ping  # not a bootstrap
         self.storage = Storage()
-        self.k_buckets = [KBucket(k_size=8) for _ in range(5)]
+        self.k_buckets = [KBucket(k_size=int(dht_config["k"])) for _ in range(160)]
         if self.id:
-            # print("Node is created with ", ip, " and a port ", port)
-            # print("Node id is ", self.id)
             logger.info(f"Node is created with {ip} and a port {port}")
             logger.info(f"Node id is {self.id}")
 
     def add_peer(self, node_id, ip, port):
-        # print("add peer function called for ", node_id)
         logger.info(f"add peer function called for {node_id}")
         distance = self.calculate_distance(self.cut_node_id(self.id), self.cut_node_id(node_id))
-        # print("distance ", distance)
         logger.info(f"distance {distance}")
         bucket_index = self.get_bucket_index(distance)
         node_instance = Node(ip=ip, port=port)
@@ -35,44 +30,42 @@ class Node:
         # Check if the peer is already in the bucket
         existing_nodes = self.k_buckets[bucket_index].nodes
         if any(n.id == node_id for n in existing_nodes):
-            # print(f"Peer with ID {node_id}, IP {ip}, Port {port} already in the bucket")
             logger.info(f"Peer with ID {node_id}, IP {ip}, Port {port} already in the bucket")
+        elif len(self.k_buckets[bucket_index].nodes) == int(dht_config["k"]):
+            logger.warning("Bucket is already full")
         else:
             self.k_buckets[bucket_index].add(node_instance)
 
         i = 0
         for k in self.k_buckets:
-            # print("BUCKET", i)
             logger.info(f"BUCKET {i}")
             i += 1
             k.visualize_k_buckets()
+
+    def remove_peer(self, ip, port):
+        """
+        Remove a peer from the appropriate k-bucket based on its IP and port.
+        """
+        node_id = self.generate_node_id(ip, port)
+
+        # Calculate the distance between the node IDs to determine the bucket index
+        distance = self.calculate_distance(self.cut_node_id(self.id), self.cut_node_id(node_id))
+        bucket_index = self.get_bucket_index(distance)
+
+        # Find and remove the node from the bucket
+        for node in self.k_buckets[bucket_index].nodes:
+            if node.id == node_id:
+                self.k_buckets[bucket_index].remove(node)
+                logger.info(f"Removed peer with ID {node_id}, IP {ip}, Port {port}")
+                return
+
+        logger.error(f"Peer with IP {ip}, Port {port}, ID {node_id} not found in k-bucket.")
 
     def put(self, key, value, ttl):
         """Handles PUT requests."""
         # print("node put called")
         logger.info("node put called")
         self.storage.put_(key, value, ttl)
-        # target_node = self.get_closest_nodes(key)[0]
-        # rpc_con = await aiomas.rpc.open_connection((target_node.ip, target_node.port))
-        # rep = await rpc_con.remote.put_key(key, value.decode('utf-8'))
-        # await rpc_con.close()
-        # print("response", rep)
-        #
-        # return rep
-
-        # print(rpc_con)
-        # key_str = key.decode('utf-8')
-        # value_str = value.decode('utf-8')
-        # print(key_str, value_str)
-        # size = 4 + len(key) + len(value)
-        # msg = struct.pack(">HH", size, MessageCodes.DHT_PUT.value) + key + value
-        # print("this length", len(key_str) + len(value_str))
-        # print(len(msg))
-        # rep = await rpc_con.remote.put(key_str, value_str)
-
-    # @aiomas.expose
-    # def put_key(self, key, value):
-    #     return self.storage.put_(key, value)
 
     def get(self, key):
         """Handles GET requests."""
@@ -86,7 +79,7 @@ class Node:
         # for i in range(0, 256, 12):
         #     temp += binary_representation[i:i+1]
 
-        last_five_bits = binary_representation[-5:]
+        last_five_bits = binary_representation[-160:]
         cut_node_id = int(last_five_bits, 2)
         # cut_node_id = int(temp, 2)
 
@@ -103,12 +96,20 @@ class Node:
             return 0
         return distance.bit_length() - 1
 
-    def get_closest_nodes(self, target_node_id, k=8):
-        distance_to_nodes = [(self.calculate_distance(self.cut_node_id(node.id), self.cut_node_id(target_node_id)), node)
-                             for bucket in self.k_buckets for
-                             node in bucket.nodes]
+    def get_closest_nodes(self, target_node_id, k=int(dht_config["k"])):
+        distance_to_nodes = [
+            (self.calculate_distance(self.cut_node_id(node.id), self.cut_node_id(target_node_id)), node)
+            for bucket in self.k_buckets for
+            node in bucket.nodes]
         distance_to_nodes.sort(key=lambda x: x[0])
         return [node for _, node in distance_to_nodes[:k]]
+
+    def get_all_peers(self):
+        """Returns a list of all peers in all k-buckets."""
+        all_peers = []
+        for bucket in self.k_buckets:
+            all_peers.extend(bucket.nodes)
+        return all_peers
 
     @staticmethod
     def generate_node_id(ip=None, port=None):
@@ -124,6 +125,9 @@ class Node:
         instance = cls(ip=ip, port=port)
         instance.id = None
         return instance
+
+    def __iter__(self):
+        return iter((self.ip, self.port))
 
     def __str__(self):
         return f"Node(id={self.id}, ip={self.ip}, port={self.port})"
