@@ -1,5 +1,8 @@
 import hashlib
+import os
 import socket
+import ssl
+import subprocess
 
 from bucket import KBucket
 from storage import Storage
@@ -18,6 +21,44 @@ class Node:
         if self.id:
             logger.info(f"Node is created with {ip} and a port {port}")
             logger.info(f"Node id is {self.id}")
+
+        self.tls_dir = f"{ip}_{port}"
+        certs_dir = os.path.join(os.path.dirname(__file__), f"../certificates/{self.tls_dir}")
+        if not os.path.exists(certs_dir):
+            os.makedirs(certs_dir)
+            self.generate_certificates(certs_dir)
+
+
+    def generate_certificates(self, certs_dir):
+        logger.info("Generating certificates...")
+        try:
+            key_file = f"{certs_dir}/{self.ip}_{self.port}.key"
+            csr_file = f"{certs_dir}/{self.ip}_{self.port}.csr"
+            cert_file = f"{certs_dir}/{self.ip}_{self.port}.crt"
+
+            subprocess.run(
+                ["openssl", "genpkey", "-algorithm", "RSA", "-out", key_file],
+                check=True
+            )
+
+            # Generate CSR
+            subprocess.run(
+                ["openssl", "req", "-new", "-key", key_file, "-out", csr_file, "-subj", f"/CN={self.port}"],
+                check=True
+            )
+
+            # Sign CSR
+            ca_dir = os.path.join(os.path.dirname(__file__), "../certificates/CA")
+            subprocess.run(
+                ["openssl", "x509", "-req", "-in", csr_file, "-CA", f"{ca_dir}/ca.pem", "-CAkey",
+                 f"{ca_dir}/ca.key", "-CAcreateserial", "-out", cert_file, "-days", "365"],
+                check=True
+            )
+
+            logger.info("Certificates generated successfully.")
+
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Failed to generate certificates: {str(e)}")
 
     def add_peer(self, node_id, ip, port):
         logger.info(f"add peer function called for {node_id}")

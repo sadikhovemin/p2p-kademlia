@@ -15,11 +15,12 @@ from loguru import logger
 
 
 class Service:
-    def __init__(self, node: Node, callback, put_connection, get_connection):
+    def __init__(self, node: Node, callback, put_connection, get_connection, load_ssl_context):
         self.node = node
         self.callback = callback
         self.put_connection = put_connection
         self.get_connection = get_connection
+        self.load_ssl_context = load_ssl_context
 
     async def process_message(self, data):
         try:
@@ -277,7 +278,8 @@ class Service:
         msg = struct.pack(">HH", size, MessageCodes.DHT_FIND_VALUE.value) + key
 
         try:
-            reader, writer = await asyncio.open_connection(node.ip, node.port)
+            ssl_context = self.load_ssl_context(node.ip, node.port)
+            reader, writer = await asyncio.open_connection(node.ip, node.port, ssl=ssl_context)
             # Send the message
             writer.write(msg)
             await writer.drain()
@@ -413,7 +415,8 @@ class Service:
         """
         logger.info(f"Checking liveness for {ip}, {port} peers")
         try:
-            _, writer = await asyncio.wait_for(asyncio.open_connection(ip, port), timeout=timeout)
+            ssl_context = self.load_ssl_context(ip, port)
+            _, writer = await asyncio.wait_for(asyncio.open_connection(ip, port, ssl=ssl_context), timeout=timeout)
             writer.close()
             await writer.wait_closed()
             return True
@@ -432,7 +435,7 @@ class Service:
             if not is_alive:
                 self.node.remove_peer(ip, port)
 
-    async def periodic_liveness_check(self, interval=300):
+    async def periodic_liveness_check(self, interval=10):
         checked = set()
         while True:
             await self.check_all_liveness()

@@ -1,4 +1,5 @@
 import asyncio
+import ssl
 
 from dht_service import Service
 from loguru import logger
@@ -6,16 +7,17 @@ import struct
 
 
 class Handler(asyncio.Protocol):
-    def __init__(self, ip, port, node, initiator=False, data=None, put=False, get=False):
+    def __init__(self, ip, port, node, initiator=False, ssl_context=None,  data=None, put=False, get=False):
         self.ip = ip
         self.port = port
         self.node = node
-        self.service = Service(node, self.connect_node_callback, self.put_connection, self.get_connection)
+        self.service = Service(node, self.connect_node_callback, self.put_connection, self.get_connection, self.load_ssl_context)
         self.transport = None
         self.initiator = initiator
         self.data = data
         self.put = put
         self.get = get
+        self.ssl_context = ssl_context
         self.buffer = None
 
     def connection_made(self, transport):
@@ -100,17 +102,37 @@ class Handler(asyncio.Protocol):
 
     async def connect_node(self, host, port, initiator):
         loop = asyncio.get_event_loop()
-        await loop.create_connection(lambda: Handler(self.ip, self.port, self.node, initiator), host, port)
+
+        # Load SSL context
+        ssl_context = self.load_ssl_context(host, port)
+        print("ssl context", ssl_context)
+        await loop.create_connection(lambda: Handler(self.ip, self.port, self.node, initiator), host, port, ssl=ssl_context)
 
     async def connect_node_callback(self, host, port, initiator=False):
         await self.connect_node(host, port, initiator)
 
     async def put_connection(self, host, port, msg):
         loop = asyncio.get_event_loop()
-        await loop.create_connection(
-            lambda: Handler(self.ip, self.port, self.node, initiator=False, data=msg, put=True), host, port)
+
+        # Load SSL context
+        ssl_context = self.load_ssl_context(host, port)
+
+        await loop.create_connection(lambda: Handler(self.ip, self.port, self.node, initiator=False, data=msg, put=True), host, port, ssl=ssl_context)
 
     async def get_connection(self, host, port, msg):
         loop = asyncio.get_event_loop()
-        await loop.create_connection(
-            lambda: Handler(self.ip, self.port, self.node, initiator=False, data=msg, get=True), host, port)
+
+        # Load SSL context
+        ssl_context = self.load_ssl_context(host, port)
+
+        await loop.create_connection(lambda: Handler(self.ip, self.port, self.node, initiator=False, data=msg, get=True), host, port, ssl=ssl_context)
+
+    def load_ssl_context(self, host, port):
+        ssl_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+        ssl_context.load_cert_chain(certfile=f"../certificates/{host}_{port}/{host}_{port}.crt",
+                                    keyfile=f"../certificates/{host}_{port}/{host}_{port}.key")  # Optional if the server requires client auth
+        ssl_context.load_verify_locations(cafile="../certificates/CA/ca.pem")
+        ssl_context.verify_mode = ssl.CERT_REQUIRED
+        ssl_context.check_hostname = False
+
+        return ssl_context
