@@ -1,17 +1,24 @@
 import hashlib
 import os
 import socket
-import ssl
 import subprocess
-
+from loguru import logger
 from bucket import KBucket
 from storage import Storage
-from loguru import logger
 from config.config import dht_config
 
 
 class Node:
+    """ Represents a node in a Distributed Hash Table (DHT) network. """
     def __init__(self, ip=None, port=None, ping=False):
+        """
+        Initializes a Node instance with its unique ID, IP address, and port number.
+
+        Parameters:
+        - ip (str): IP address of the node.
+        - port (int): Port number of the node.
+        - ping (bool): Whether the node should connect to bootstrap.
+        """
         self.id = self.generate_node_id(ip, port) if (ip and port) else None
         self.ip = ip
         self.port = port
@@ -30,6 +37,7 @@ class Node:
 
 
     def generate_certificates(self, certs_dir):
+        """ Generates certificates for the node. """
         logger.info("Generating certificates...")
         try:
             key_file = f"{certs_dir}/{self.ip}_{self.port}.key"
@@ -61,9 +69,7 @@ class Node:
             logger.error(f"Failed to generate certificates: {str(e)}")
 
     def add_peer(self, node_id, ip, port):
-        logger.info(f"add peer function called for {node_id}")
         distance = self.calculate_distance(self.cut_node_id(self.id), self.cut_node_id(node_id))
-        logger.info(f"distance {distance}")
         bucket_index = self.get_bucket_index(distance)
         node_instance = Node(ip=ip, port=port)
         node_instance.id = node_id  # Manually set the ID without generating a new one
@@ -84,9 +90,7 @@ class Node:
             k.visualize_k_buckets()
 
     def remove_peer(self, ip, port):
-        """
-        Remove a peer from the appropriate k-bucket based on its IP and port.
-        """
+        """ Remove a peer from the appropriate k-bucket based on its IP and port. """
         node_id = self.generate_node_id(ip, port)
 
         # Calculate the distance between the node IDs to determine the bucket index
@@ -104,8 +108,6 @@ class Node:
 
     def put(self, key, value, ttl):
         """Handles PUT requests."""
-        # print("node put called")
-        logger.info("node put called")
         self.storage.put_(key, value, ttl)
 
     def get(self, key):
@@ -114,17 +116,9 @@ class Node:
 
     @staticmethod
     def cut_node_id(node_id):
-        binary_representation = bin(node_id)[2:]  # [2:] to skip the "0b" prefix
-
-        # temp = ""
-        # for i in range(0, 256, 12):
-        #     temp += binary_representation[i:i+1]
-
+        binary_representation = bin(node_id)[2:]  # To skip the "0b" prefix
         last_five_bits = binary_representation[-160:]
         cut_node_id = int(last_five_bits, 2)
-        # cut_node_id = int(temp, 2)
-
-        # logger.info(f"cut node id {cut_node_id}")
         return cut_node_id
 
     @staticmethod
@@ -138,10 +132,12 @@ class Node:
         return distance.bit_length() - 1
 
     def get_closest_nodes(self, target_node_id, k=int(dht_config["k"])):
+        """ Finds the k closest nodes to a given target node ID. """
         distance_to_nodes = [
             (self.calculate_distance(self.cut_node_id(node.id), self.cut_node_id(target_node_id)), node)
-            for bucket in self.k_buckets for
-            node in bucket.nodes]
+            for bucket in self.k_buckets
+            for node in bucket.nodes
+        ]
         distance_to_nodes.sort(key=lambda x: x[0])
         return [node for _, node in distance_to_nodes[:k]]
 
@@ -157,7 +153,6 @@ class Node:
         if ip is None:
             ip = socket.gethostbyname(socket.gethostname())
         unique_str = f"{ip}:{port}"
-        # unique_str = f"{port}"
         return int(hashlib.sha256(unique_str.encode()).hexdigest(), 16)  # Convert to integer
 
     @classmethod
