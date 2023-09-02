@@ -8,12 +8,6 @@ from config.config import dht_config
 from loguru import logger
 
 
-# TODO: for bootstrap recovery, send periodic node_reply
-# TODO: HMAC integrity after TLS (+)
-# TODO: code cleaning
-# TODO: try/catch
-
-
 class Service:
     def __init__(self, node: Node, callback, put_connection, get_connection, load_ssl_context):
         self.node = node
@@ -24,56 +18,40 @@ class Service:
 
     async def process_message(self, data):
         try:
-            # print("data", data)
-            # logger.info(f"data {data}")
             size = struct.unpack(">H", data[:2])[0]
             request_type = struct.unpack(">H", data[2:4])[0]
-            # print("request_type", request_type)
             logger.info(f"request_type {request_type}")
-            # print("size", size)
             logger.info(f"size {size}")
-            # print(len(data))
             logger.info(len(data))
             if size == len(data):
                 if request_type == MessageCodes.DHT_PING.value:
-                    # print("PING ALDIM")
                     logger.info("PING ALDIM")
                     return self.pong_service(data[4:])
                 elif request_type == MessageCodes.DHT_PONG.value:
-                    # print("PONG ALDIM")
                     logger.info("PONG ALDIM")
                     print(data)
-                    # logger.info(data)
                     ip_parts = struct.unpack(">BBBB", data[36:40])
                     ip_address = f"{ip_parts[0]}.{ip_parts[1]}.{ip_parts[2]}.{ip_parts[3]}"
                     listening_port = struct.unpack(">H", data[40:42])[0]
                     self.node.add_peer(self.node.generate_node_id(ip_address, listening_port), ip_address,
                                        listening_port)
-                    # print("adding peer with ", ip_address, listening_port)
                     logger.info(f"adding peer with {ip_address}, {listening_port}", )
                     ip_parts = list(map(int, self.node.ip.split('.')))
                     return (struct.pack(">HH", 10, MessageCodes.DHT_FIND_NODE.value) +
                             struct.pack(">BBBBH", ip_parts[0], ip_parts[1], ip_parts[2], ip_parts[3], self.node.port))
-                    # return MessageCodes.DHT_FIND_NODE.value
 
                 elif request_type == MessageCodes.DHT_PUT.value:
-                    # print("DHT PUT geldim")
                     logger.info("DHT PUT geldim")
                     return await self.put_service(data)
                 elif request_type == MessageCodes.DHT_GET.value:
-                    # print("DHT GET geldim")
                     logger.info("DHT GET geldim")
                     return await self.get_service(data)
                 elif request_type == MessageCodes.DHT_FIND_NODE.value:
-                    # print("find_node geldim")
                     logger.info("find_node geldim")
                     return self.find_node_service(data[4:])
                 elif request_type == MessageCodes.DHT_NODE_REPLY.value:
-                    # print("node reply geldim")
                     logger.info("node reply geldim")
-                    # return data
                     nodes_to_connect = self.extract_nodes(data[4:])
-                    # print("below printing nodes to connect")
                     logger.info("below printing nodes to connect")
                     for n_c in nodes_to_connect:
                         print(n_c)
@@ -82,47 +60,30 @@ class Service:
                     return "ok".encode()
 
                 elif request_type == MessageCodes.DHT_FIND_VALUE.value:
-                    # print("find_value geldim")
                     logger.info("find_value geldim")
-                    # return await self.find_value_service(data[4:])
                     return await self.handle_find_value_request(data[4:])
 
-                # elif request_type == MessageCodes.DHT_FOUND_PEERS.value:
-                #     print("found_peers geldim")
-                #     # return await self.found_peers_service(data[4:])
-
                 elif request_type == MessageCodes.DHT_SUCCESS.value:
-                    # print("received success")
                     logger.info("received success")
                     return "get calisti".encode()
                 else:
-                    # print(f"Invalid request type. Received {request_type}")
                     logger.warning(f"Invalid request type. Received {request_type}")
                     return False
             else:
-                # print("WRONG DATA SIZE")
                 logger.warning("WRONG DATA SIZE")
         except Exception as e:
-            # print("MALFORMED MESSAGE error", e)
             logger.error(f"MALFORMED MESSAGE error {e}")
 
     async def put_service(self, data):
-        # print("put_service called")
         logger.info("put_service called")
         ttl = int(struct.unpack(">H", data[4:6])[0])
         key = data[8:40]
         value = data[40:]
         replication = int(struct.unpack(">B", data[6:7])[0])
         reserved = int(struct.unpack(">B", data[7:8])[0])
-        # print("reserved", reserved)
         logger.info(f"reserved {reserved}")
-        # print("key", key)
-        # print("value", value)
         logger.info(f"key {key}")
         logger.info(f"value {value}")
-
-        # if key in self.node.storage:
-        #     self.node.put(key, value, ttl)
 
         max_lookup = int(dht_config["max_lookup"])
         if reserved == 0 or reserved > max_lookup:
@@ -137,6 +98,10 @@ class Service:
         closest_nodes = self.node.get_closest_nodes(hashed_key)[:alpha]
         my_distance = self.node.calculate_distance(hashed_key, self.node.id)
 
+        if len(closest_nodes) == 0:
+            self.node.put(key, value, ttl)
+            return "put calisti".encode()
+
         '''
         Replication
         In case I'm closer to key than one of nodes from alpha closest, I can store value on myself as well
@@ -150,11 +115,11 @@ class Service:
         if flag:
             self.node.put(key, value, ttl)
 
-        # logger.error(f"my distance {self.node.calculate_distance(hashed_key)}")
         next_nodes_to_query = self.node.get_closest_nodes(hashed_key)[alpha:]
         index = 0
 
         reserved -= 1
+        msg = None
         for node in closest_nodes:
             logger.info(f"target_node {node}")
             size = 8 + len(key) + len(value)
@@ -173,20 +138,16 @@ class Service:
 
     async def get_service(self, data):
         key = data[4:]
-        # print("dht_key", key)
         logger.info(f"dht_key {key}")
         value = self.node.get(key)
-        # print("retrieved value", value)
         logger.info(f"retrieved value {value}")
         if value is not None:
             size = 4 + len(key) + len(value)
             msg = struct.pack(">HH", size, MessageCodes.DHT_SUCCESS.value) + key + value
-            # print("returning msg")
             logger.info("returning msg")
             return msg
         else:
             # Start the iterative search
-            # print("starting to search")
             logger.info("starting to search")
             result = await self.iterative_find_value(key)
 
@@ -199,12 +160,10 @@ class Service:
 
             if result is not None:
                 # Construct response with the found value
-
                 size = 4 + len(key) + len(result)
                 msg = struct.pack(">HH", size, MessageCodes.DHT_SUCCESS.value) + key + result
                 return msg
             else:
-                # print("result none dondu")
                 logger.warning("result = none -- inside get_service else clause")
                 return "Value not found".encode()
 
@@ -272,7 +231,6 @@ class Service:
 
     async def query_node_for_value(self, node, key):
         # Send a find_value request to the given node
-        # print("trying to query node", node.ip, node.port)
         logger.info(f"trying to query node {node.ip}, {node.port}")
         size = 4 + len(key)
         msg = struct.pack(">HH", size, MessageCodes.DHT_FIND_VALUE.value) + key
@@ -312,8 +270,7 @@ class Service:
 
     async def handle_find_value_request(self, key):
         # Check if this node holds the value for the given key
-        print("handle_find_value_request geldim")
-        # logger.info("handle_find_value_request geldim")
+        logger.info("handle_find_value_request geldim")
         value = self.node.get(
             key)  # Assuming this function retrieves the value for the given key from the node's local store
 
@@ -323,8 +280,7 @@ class Service:
             return response
 
         else:
-            print("handle_find_value_request else clause girdim")
-            # logger.info("handle_find_value_request else clause girdim")
+            logger.info("handle_find_value_request else clause girdim")
             # If the node doesn't have the value, find the k closest nodes to the key
             hashed_key = self.get_hashed_key(key)
             alpha = int(dht_config["alpha"])
