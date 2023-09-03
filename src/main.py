@@ -70,11 +70,16 @@ if __name__ == "__main__":
     api_port = int(api_address.split(":")[1])  # Make sure to convert to integer
 
     cmd = argparse.ArgumentParser(description="Run a DHT client mockup.")
+    cmd.add_argument("-a", "--address", type=str, help="Server ip")
     cmd.add_argument("-p", "--port", type=int, help="Server port")
     cmd.add_argument("--bootstrap", action="store_true",
                      help="Connect to bootstrap node upon startup")
 
     args = cmd.parse_args()
+
+    if args.address is not None:
+        api_host = args.address
+
 
     if args.port is not None:
         api_port = args.port
