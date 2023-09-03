@@ -404,7 +404,7 @@ class Service:
             nodes_to_connect.append((ip_address, port))
             offset += 6
 
-        nodes_to_connect = self.filter_nodes_1(nodes_to_connect)
+        nodes_to_connect = self.filter_nodes_tuple(nodes_to_connect)
         return nodes_to_connect
 
     @staticmethod
@@ -446,7 +446,7 @@ class Service:
         """
         return [node for node in closest_nodes if node.id != node_id and node not in self.node.k_buckets]
 
-    def filter_nodes_1(self, nodes):
+    def filter_nodes_tuple(self, nodes):
         """
         Filter out nodes that are already present in the k-buckets.
 

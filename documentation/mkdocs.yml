@@ -1,0 +1,14 @@
+site_name: My Docs
+nav:
+  - Home: 'index.md'
+  - Getting Started: 'getting_started.md'
+  - Features: 'features.md'
+  - Code Reference:
+      - Main: 'code_reference/main.md'
+      - API Handler: 'code_reference/api_handler.md'
+      - DHT Service: 'code_reference/dht_service.md'
+      - Node: 'code_reference/node.md'
+      - Bucket: 'code_reference/bucket.md'
+      - Storage: 'code_reference/storage.md'
+  - Tutorials: 'tutorials.md'
+  - License: 'license.md'

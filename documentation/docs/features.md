@@ -1,0 +1,18 @@
+## Efficient Node Operations
+- **Optimized PUT and GET Operations**: Our system is designed for efficiency. When performing PUT and GET operations, we ensure that the initiating node communicates with at least the three closest nodes. This not only enhances the speed but also the accuracy of the operation.
+- **Search Queue Efficiency**: For the PUT operation, nodes originating from the closest nodes are placed in the search queue. This strategy optimizes our searching complexity to `O(log N)`, ensuring rapid data retrieval.
+- **Recursive and Iterative Approaches**: The PUT operation utilizes a recursive mechanism until the `max_lookup` threshold is reached. In contrast, the GET operation employs an iterative method to either retrieve the desired value or identify additional nodes to query.
+
+## System Availability and Liveness Checks
+- **Periodic Liveness Checks**: To guarantee maximum system uptime, we periodically verify node liveness. Nodes autonomously inspect each other at regular intervals. If a node fails to respond during these checks, it is promptly removed. This proactive approach ensures our system remains aware of each node's status and overall system health.
+- **Node Management with K-Buckets**: We meticulously maintain k-buckets for effective node management. While we've emphasized the removal of non-responsive peers, we also monitor bucket capacity. If a bucket is filled to capacity, we temporarily halt the addition of new peers. However, post liveness checks, slots made available by non-responsive nodes can be occupied by new nodes.
+- **Dynamic Peer Removal**: Along with liveness checks, we have a system in place to periodically remove peers if deemed necessary. This ensures efficient resource utilization and optimal system performance.
+
+## Data Longevity and Integrity
+- **Time-to-Live (TTL) Based Data Management**: We've implemented a TTL-based mechanism for data storage. When a data item's TTL expires, it's automatically purged from the system. However, popular data items, i.e., those frequently accessed, benefit from a TTL extension, though within set limits. This approach prevents indefinite storage of any value, balancing data relevance and system efficiency. Moreover, users have the flexibility to modify the TTL value via the configuration file.
+- **Hash-based Value Storage**: Upholding data integrity is paramount. When storing values in the system, we also store their corresponding hash values as checksums. This allows us to perform integrity checks whenever a value is retrieved, ensuring that data remains unaltered and authentic.
+
+## Advanced Security and Fault Tolerance
+- **End-to-End Encryption**: We prioritize the security of our system and its users. By leveraging SSL certificates, we provide a robust security measure against potential threats.
+- **Certificate Authority (CA) Creation**: We've established a Certificate Authority (CA) specifically for our system. When nodes are initialized, they generate their individual certificates. An SSL connection is mandated for all node communications. To ensure trust and ease of setup, the CA is shared out-of-band across all nodes.
+- **Robust Fault Tolerance**: Our architecture is resilient against both node crashes and communication faults. A node crash remains isolated, ensuring no adverse impact on system availability or peer operations. We've also built-in checks for TCP streaming anomalies, malformed messages, and message size discrepancies, fortifying our system against a broad spectrum of potential issues.

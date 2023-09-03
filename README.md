@@ -55,8 +55,4 @@ We would like to thank everyone who contributed to this project directly or indi
 
 ---
 
-For more details, please refer to the project's [documentation](docs/).
-
----
-
-For more details, please refer to the project's [documentation](docs/).
+For more details, please refer to the project's [documentation](reports/).
