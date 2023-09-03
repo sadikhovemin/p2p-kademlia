@@ -61,12 +61,10 @@ class Handler(asyncio.Protocol):
         self.buffer = self.buffer[size:]
 
         if data in [
-            b"ok",
-            b"Data stored successfully",
-            b"put calisti",
-            b"get calisti",
-            b"Key not found",
-            b"find_value_service calisti"
+            b"running",
+            b"put works",
+            b"get works",
+            b"Value not found",
         ]:
             logger.info(data.decode())
             return

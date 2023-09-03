@@ -3,8 +3,10 @@ import time
 from loguru import logger
 from config.config import dht_config
 
+
 class Storage:
     """This class provides methods for storing key-value pairs with expiration."""
+
     def __init__(self):
         self.data = {}
         self.tag = {}

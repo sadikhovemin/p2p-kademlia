@@ -58,13 +58,13 @@ class Service:
                         print(n_c)
                         await asyncio.create_task(self.callback(n_c[0], n_c[1], initiator=True))
 
-                    return "ok".encode()
+                    return "running".encode()
 
                 elif request_type == MessageCodes.DHT_FIND_VALUE.value:
                     return await self.handle_find_value_request(data[4:])
 
                 elif request_type == MessageCodes.DHT_SUCCESS.value:
-                    return "get calisti".encode()
+                    return "get works".encode()
                 else:
                     logger.warning(f"Invalid request type. Received {request_type}")
                     return False
@@ -86,7 +86,7 @@ class Service:
 
         if reserved == 1:
             self.node.put(key, value, ttl)
-            return "put calisti".encode()
+            return "put works".encode()
 
         alpha = int(dht_config["alpha"])
         hashed_key = self.get_hashed_key(key)
@@ -95,12 +95,10 @@ class Service:
 
         if len(closest_nodes) == 0:
             self.node.put(key, value, ttl)
-            return "put calisti".encode()
+            return "put works".encode()
 
-        '''
-        Replication
-        In case I'm closer to key than one of nodes from alpha closest, I can store value on myself as well
-        '''
+        # Replication. In case I'm closer to key than one of nodes from alpha closest,
+        # I can store value on myself as well
         flag = False
         for c_n in closest_nodes:
             local_distance = self.node.calculate_distance(c_n.id, hashed_key)
@@ -132,7 +130,6 @@ class Service:
                     closest_nodes.append(next_nodes_to_query[index])
                     logger.info(f"index {index}")
                     index += 1
-
         return msg
 
     async def get_service(self, data):
@@ -329,12 +326,7 @@ class Service:
         closest_nodes = self.node.get_closest_nodes(node_id)
 
         closest_nodes = self.filter_nodes(closest_nodes, node_id)
-        """
-        2 - size
-        2 - message type
-        2 - number of nodes
-        len(closest_nodes) * 6 (ip, port) - Nodes
-        """
+
         header = struct.pack(">HHH",
                              6 + len(closest_nodes) * 6,
                              MessageCodes.DHT_NODE_REPLY.value,
