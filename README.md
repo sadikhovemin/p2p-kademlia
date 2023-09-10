@@ -1,46 +1,61 @@
-# Kademlia DHT project for the Peer-to-Peer-Systems and Security (IN2194) [TUM] 
+# Kademlia DHT
 ## Description
-This project is a Distributed Hash Table (DHT) implementing the Kademlia protocol. It provides a secure and efficient way to perform DHT operations. Written in Python and leveraging the Asyncio library, the system supports multi-client connections and offers robust exception handling.
+This project for the Peer-to-Peer-Systems and Security (IN2194) [TUM]  is a Distributed Hash Table (DHT) implementing the Kademlia protocol. It provides a secure and efficient way to perform DHT operations. Written in Python and leveraging the Asyncio library, the system supports multi-client connections and offers robust exception handling.
 
 ## Features
--Implements the Kademlia protocol
--Supports DHT operations
--Multi-client connections
--Robust exception handling
+- Implements the Kademlia protocol
+- Supports DHT operations
+- Multi-client connections
+- Robust exception handling
+
+
+## Prerequisites
+
+Ensure that you have the following installed on your system:
+
+- Python 3.11
+- [Poetry](https://python-poetry.org/docs/#installation)
 
 
 ## Installation
-Clone the repository:
+Open your terminal and run the following command:
 
-git clone https://gitlab.lrz.de/netintum/teaching/p2psec_projects_2023/DHT-8.git
-
+```bash
+git clone https://github.com/SadikhovEmin/p2p-kademlia.git
+```
 
 Navigate to the project directory:
-
+```bash
 cd project-name
-
+```
 
 Install the required packages:
+```bash
+poetry install
+```
 
-pip install -r requirements.txt
-
+Open shell:
+```bash
+poetry shell
+```
 
 Usage
 Run the server:
-
+```bash
 python server.py
-
+```
 
 Run the client:
-
+```bash
 python client.py
+```
 
+### Tests
 
-Tests
 To run the test suite, execute:
-
+```bash
 pytest test/
-
+```
 
 ## Contributors
 Emin Sadikhov
@@ -49,9 +64,6 @@ Dogan Can Hasanoglu
 
 ## License
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
-## Acknowledgements
-We would like to thank everyone who contributed to this project directly or indirectly.
 
 ---
 
