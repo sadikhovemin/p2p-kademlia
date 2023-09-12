@@ -40,14 +40,14 @@ poetry shell
 ```
 
 Usage
-Run the server:
+Run the bootstrap:
 ```bash
-python server.py
+python main.py -a 127.0.0.1 -p 7401
 ```
 
-Run the client:
+Run the peer:
 ```bash
-python client.py
+python main.py -a 127.0.0.1 -p 7402 --bootstrap
 ```
 
 ### Tests
@@ -56,11 +56,6 @@ To run the test suite, execute:
 ```bash
 pytest test/
 ```
-
-## Contributors
-Emin Sadikhov
-Dogan Can Hasanoglu
-
 
 ## License
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
